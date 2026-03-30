@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Calm Landing ✈️</title>
+
+  <!-- PWA Meta Tags – ermöglicht Installation auf iOS und Android -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#b8d8f8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Calm Landing">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Google Font: Nunito – rund, freundlich, gut lesbar -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    /* ── CSS VARIABLEN ─────────────────────────────────── */
+    :root {
+      --sky-top:    #7ec8f0;
+      --sky-mid:    #b8dff8;
+      --sky-bot:    #dff0ff;
+      --green:      #66bb6a;
+      --green-light:#a5d6a7;
+      --gold:       #ffd54f;
+      --gold-dark:  #ffb300;
+    }
+
+    /* Kein blaues Tap-Highlight auf Mobile, kein Outline */
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      font-family: 'Nunito', system-ui, sans-serif;
+      background: linear-gradient(175deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-bot) 100%);
+      overflow: hidden;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    /* ── OVERLAYS (Countdown + Singapur-Meilenstein) ───── */
+    #countdownOverlay, #milestoneOverlay {
+      position: fixed; inset: 0;
+      background: rgba(20,50,80,0.62);
+      backdrop-filter: blur(10px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 999; opacity: 0; pointer-events: none;
+      transition: opacity 0.55s;
+    }
+    .visible { opacity: 1 !important; pointer-events: auto !important; }
+
+    #departureText {
+      font-size: clamp(1.4rem, 5vw, 2rem); color: #cde8ff;
+      font-weight: 700; margin-bottom: 1.2vh;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    #countdownText {
+      font-size: clamp(5rem, 20vw, 9rem); font-weight: 900;
+      color: #fff; text-shadow: 0 0 40px rgba(100,180,255,0.6); line-height: 1;
+    }
+    #milestoneText {
+      font-size: clamp(2rem, 6.5vw, 3.2rem); font-weight: 800;
+      text-align: center; line-height: 1.45; padding: 0 8vw;
+      color: #e8f5e9; text-shadow: 0 4px 20px #0009;
+    }
+
+    /* ── SPRUCH BUBBLE (Meilenstein-Popup bei 10/20/30/40) ─ */
+    #spruchBubble {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: rgba(255,255,255,0.97); border-radius: 28px;
+      padding: 2.4rem 2.8rem; text-align: center;
+      z-index: 800; max-width: min(88vw, 440px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.35s, transform 0.35s;
+    }
+    #spruchBubble.show {
+      opacity: 1; pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    #spruchEmoji { font-size: clamp(3rem,10vw,4.5rem); line-height:1; margin-bottom:0.6rem; }
+    #spruchText  {
+      font-size: clamp(1.35rem,5vw,1.75rem); font-weight:700;
+      color:#2a4a6a; line-height:1.4; margin-bottom:1.2rem; white-space:pre-line;
+    }
+    #spruchClose {
+      padding:0.7em 2.2em; font-family:'Nunito',sans-serif;
+      font-size:clamp(1.1rem,4vw,1.4rem); font-weight:800;
+      border:none; border-radius:999px;
+      background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+      color:#111; cursor:pointer;
+      box-shadow:0 6px 20px rgba(0,0,0,0.18); transition:transform 0.15s;
+    }
+    #spruchClose:active { transform: scale(0.94); }
+
+    /* ── STARTSCREEN ── */
+    #startScreen {
+      position:fixed; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:rgba(10,35,65,0.45); backdrop-filter:blur(12px); z-index:50;
+    }
+    #startScreen h1 {
+      font-size:clamp(3.2rem,12vw,5.5rem); font-weight:900;
+      margin:0 0 2vh; color:#fff; text-shadow:0 6px 24px rgba(0,0,0,0.3);
+    }
+    #startScreen p {
+      font-size:clamp(1.3rem,5vw,1.8rem); font-weight:700; color:#d6eeff;
+      margin:0 0 6vh; line-height:1.55; text-align:center; padding:0 6vw;
+    }
+
+    /* ── HAUPT-BUTTON (gold) ── */
+    .btn-main {
+      padding:1em 3.5em; font-family:'Nunito',sans-serif;
+      font-size:clamp(1.3rem,5.5vw,1.8rem); font-weight:800;
+      border:none; border-radius:999px;
+      background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+      color:#111; cursor:pointer;
+      box-shadow:0 12px 38px rgba(0,0,0,0.3); transition:transform 0.15s;
+    }
+    .btn-main:active { transform: scale(0.95); }
+
+    /* ── GAME CONTAINER ──
+       overflow:hidden verhindert dass Gebäude ausserhalb des Bildschirms
+       sichtbar sind (Bug Fix Screenshot 1) */
+    #gameContainer {
+      position:relative; width:100%; height:100vh;
+      display:none; z-index:2; overflow:hidden;
+    }
+
+    /* ── SCORE + STADTNAME ── */
+    #score {
+      position:absolute; top:2vh; left:4vw;
+      font-size:clamp(2.2rem,9vw,3.6rem); font-weight:900;
+      z-index:30; color:#fff; text-shadow:0 4px 14px #0008; line-height:1.1;
+    }
+
+    /* ── ROUTENBAR ── */
+    #routeContainer { position:absolute; top:1.5vh; right:3vw; width:min(88vw,560px); z-index:40; }
+    #routeHeader { font-size:clamp(1.3rem,4.5vw,1.8rem); font-weight:800; margin-bottom:0.6vh; color:#e8f5e9; text-shadow:0 3px 10px #0006; }
+    #routeBar {
+      height:34px; background:rgba(255,255,255,0.22); border-radius:17px;
+      overflow:visible; box-shadow:inset 0 2px 10px rgba(0,0,0,0.2); position:relative;
+    }
+    #routeProgress {
+      position:absolute; top:0; bottom:0; left:0; width:0%;
+      background:linear-gradient(90deg,var(--green),var(--green-light));
+      border-radius:17px; transition:width 1s ease-out;
+      box-shadow:0 0 18px rgba(102,187,106,0.55);
+    }
+    /* &#9992; = ✈ ohne Emoji-Variation-Selector
+       Verhindert blaues Rechteck/Box auf iOS und Android (Bug Fix Screenshot 2) */
+    #routePlane {
+      position:absolute; top:50%; left:0%;
+      transform:translate(-50%,-50%); font-size:18px; line-height:1;
+      z-index:10; transition:left 1s ease-out; pointer-events:none;
+      color:#fff; -webkit-user-select:none; user-select:none;
+    }
+    .stop {
+      position:absolute; top:-4.5vh; font-size:clamp(1rem,3.8vw,1.5rem);
+      font-weight:800; color:#f1f8e9; text-shadow:0 3px 10px #0007;
+      transform:translateX(-50%); white-space:nowrap;
+    }
+
+    /* ── FLUGZEUG ── */
+    #plane {
+      position:absolute; left:14%; font-size:clamp(64px,16vw,88px);
+      line-height:1; z-index:20; transition:transform 0.18s ease-out;
+      will-change:top, transform;
+    }
+
+    /* ── MARIO STERN ──
+       Ausserhalb #gameContainer damit er nicht von overflow:hidden geclippt wird */
+    #marioStar {
+      position:fixed; font-size:clamp(55px,13vw,80px);
+      z-index:600; pointer-events:none; display:none;
+      filter:drop-shadow(0 0 18px #ffe066) drop-shadow(0 0 8px #ff0);
+      animation:starFlyIn 2.8s cubic-bezier(0.15,0.8,0.3,1) forwards;
+    }
+    @keyframes starFlyIn {
+      0%   { right:-100px; top:50%; transform:translateY(-50%) scale(0.2) rotate(0deg);   opacity:0; }
+      15%  { opacity:1; transform:translateY(-50%) scale(1.1) rotate(60deg); }
+      50%  { transform:translateY(-50%) scale(1.4) rotate(240deg); }
+      80%  { opacity:1; transform:translateY(-50%) scale(1.0) rotate(420deg); }
+      100% { right:28%;  top:50%; transform:translateY(-50%) scale(0.5) rotate(560deg); opacity:0; }
+    }
+
+    /* ── REGENBOGEN MODUS (Mario-Kart Effekt nach dem Stern) ── */
+    @keyframes rainbowPlane {
+      0%   { filter:hue-rotate(0deg)   brightness(1.5) drop-shadow(0 0 14px #ff0); }
+      25%  { filter:hue-rotate(90deg)  brightness(1.5) drop-shadow(0 0 14px #0f0); }
+      50%  { filter:hue-rotate(180deg) brightness(1.5) drop-shadow(0 0 14px #0ff); }
+      75%  { filter:hue-rotate(270deg) brightness(1.5) drop-shadow(0 0 14px #f0f); }
+      100% { filter:hue-rotate(360deg) brightness(1.5) drop-shadow(0 0 14px #ff0); }
+    }
+    .rainbow-mode { animation:rainbowPlane 0.35s linear infinite !important; transition:none !important; }
+
+    /* ── FREEZE OVERLAY ──
+       Transparentes Fixed-Element das ALLE Touch/Click-Inputs blockiert
+       während der Singapur-Transition. Verhindert dass Flugzeug abstürzt
+       weil man noch tippt (Bug Fix) */
+    #freezeOverlay {
+      position:fixed; inset:0; background:transparent;
+      z-index:450; display:none; pointer-events:all;
+    }
+
+    /* ── WOLKEN (Hindernisse) ── */
+    .cloud-pair { position:absolute; width:160px; height:100vh; will-change:transform; }
+    .cloud {
+      position:absolute; width:130px; background:rgba(255,255,255,0.96);
+      border-radius:90px; left:15px; box-shadow:0 10px 32px rgba(255,255,255,0.35);
+    }
+    .cloud.top    { top:0; }
+    .cloud.bottom { bottom:0; }
+    .cloud::before, .cloud::after { content:""; position:absolute; background:rgba(255,255,255,0.96); border-radius:50%; }
+    .cloud::before { width:60px; height:60px; left:18px; top:-26px; }
+    .cloud::after  { width:78px; height:78px; left:56px; top:-36px; }
+
+    /* ── AUTOPILOT BANNER ── */
+    #autopilotBanner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(16px);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 24px;
+      padding: 1.4rem 2.4rem;
+      text-align: center;
+      z-index: 300;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s, transform 0.6s;
+      color: #fff;
+      font-size: clamp(1.4rem, 5vw, 2rem);
+      font-weight: 800;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+      white-space: pre-line;
+    }
+    #autopilotBanner.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* ── GEBÄUDE (Hindernisse) ── */
+    .building-wrap { position:absolute; bottom:0; height:100vh; pointer-events:none; will-change:transform; }
+    .building {
+      position:absolute; bottom:0;
+      border-radius:3px 3px 0 0;
+      overflow:hidden;
+      box-shadow:
+        inset -6px 0 20px rgba(0,0,0,0.35),
+        4px 0 16px rgba(0,0,20,0.45),
+        0 0 35px rgba(30,60,130,0.3);
+    }
+    .building:nth-child(odd)  { background: linear-gradient(175deg, #3a5882 0%, #1a3058 70%, #0f1e3a 100%); }
+    .building:nth-child(even) { background: linear-gradient(175deg, #4e6e9e 0%, #263f6e 70%, #141e40 100%); }
+    .building:nth-child(3n)   { background: linear-gradient(175deg, #2e4a72 0%, #152840 70%, #0a1428 100%); }
+    /* Antenne mit blinkendem roten Licht */
+    .building.has-antenna::before {
+      content:''; position:absolute; top:-30px; left:50%; transform:translateX(-50%);
+      width:3px; height:30px;
+      background:linear-gradient(to top, #1a3060, #3a5888);
+      border-radius:2px;
+      box-shadow: 0 -5px 0 2px rgba(255,50,50,0.95), 0 -5px 10px 3px rgba(255,0,0,0.5);
+      animation: antennaLight 1.8s ease-in-out infinite;
+    }
+    @keyframes antennaLight {
+      0%,100% { box-shadow: 0 -5px 0 2px rgba(255,50,50,0.95), 0 -5px 10px 3px rgba(255,0,0,0.5); }
+      50%      { box-shadow: 0 -5px 0 2px rgba(255,50,50,0.15), 0 -5px 4px 1px rgba(255,0,0,0.1); }
+    }
+
+    /* ── GAME OVER ── */
+    #gameOver { position:fixed; inset:0; background:rgba(10,30,55,0.55); backdrop-filter:blur(14px); display:none; place-items:center; z-index:100; }
+    .go-box { background:#fff; color:#222; padding:3.5rem 2.8rem; border-radius:30px; text-align:center; box-shadow:0 20px 70px rgba(0,0,0,0.38); max-width:90vw; }
+    .go-box h2 { margin:0 0 1rem; font-size:clamp(2rem,8vw,3rem); font-weight:900; white-space:pre-line; }
+    .go-box p  { font-size:clamp(1.2rem,4.5vw,1.6rem); margin:0 0 2.4rem; color:#556; line-height:1.5; font-weight:600; white-space:pre-line; }
+
+    /* ── WIN SCREEN (Singapur / Halbzeit) ── */
+    #winScreen { position:fixed; inset:0; background:rgba(10,50,30,0.7); backdrop-filter:blur(14px); display:none; place-items:center; z-index:100; }
+    .win-box { background:linear-gradient(160deg,#e8f5e9,#fff8e1); color:#1a3a1a; padding:3.5rem 2.8rem; border-radius:30px; text-align:center; box-shadow:0 20px 70px rgba(0,0,0,0.4); max-width:90vw; }
+    .win-box h2 { margin:0 0 0.8rem; font-size:clamp(2rem,8vw,3rem); font-weight:900; }
+    .win-box p  { font-size:clamp(1.2rem,4.5vw,1.6rem); margin:0 0 2.4rem; color:#2a5a2a; line-height:1.5; font-weight:600; }
+
+    /* ── FINALER ENDSCREEN (ICN) ── */
+    #finalScreen { position:fixed; inset:0; background:linear-gradient(160deg,#0a0e2a,#1a1040,#0d1a33); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:200; overflow:hidden; }
+    #finalScreen.show { display:flex; }
+    .confetti-piece { position:absolute; border-radius:2px; animation:confettiFall linear forwards; pointer-events:none; }
+    @keyframes confettiFall { 0% { transform:translateY(-40px) rotate(0deg); opacity:1; } 100% { transform:translateY(110vh) rotate(720deg); opacity:0; } }
+    #finalContent { position:relative; z-index:2; text-align:center; padding:2rem; display:flex; flex-direction:column; align-items:center; gap:1.4vh; }
+    #finalTitle { font-size:clamp(2rem,8vw,3.2rem); font-weight:900; color:#fff; text-shadow:0 0 30px rgba(255,220,80,0.8); line-height:1.2; }
+    #finalSub   { font-size:clamp(1rem,3.8vw,1.4rem); font-weight:700; color:#c8e0ff; line-height:1.5; max-width:80vw; }
+    #qrBox { background:#fff; border-radius:22px; padding:1.4rem; box-shadow:0 0 60px rgba(255,220,80,0.35),0 20px 50px rgba(0,0,0,0.4); display:flex; flex-direction:column; align-items:center; gap:0.6rem; margin:0.5vh 0; }
+    #qrLabel { font-size:clamp(0.9rem,3.2vw,1.1rem); font-weight:800; color:#2a4a6a; text-align:center; }
+    #finalBtn { padding:0.9em 2.8em; font-family:'Nunito',sans-serif; font-size:clamp(1.1rem,4vw,1.4rem); font-weight:900; border:none; border-radius:999px; background:linear-gradient(135deg,#ffd54f,#ffb300); color:#111; cursor:pointer; box-shadow:0 8px 28px rgba(255,180,0,0.45); transition:transform 0.15s; }
+    #finalBtn:active { transform:scale(0.95); }
+
+    /* ── NACHT-MODUS (ab Score 50) ── */
+    body.night { background:linear-gradient(175deg,#0a0e2a,#111b3a,#1a2a50) !important; transition:background 8s ease; }
+    body.night #sun     { opacity:0; transition:opacity 4s ease; }
+    body.night #sunRays { opacity:0; transition:opacity 4s ease; }
+    #moon { position:fixed; top:8vh; right:12vw; width:clamp(50px,12vw,80px); height:clamp(50px,12vw,80px); border-radius:50%; background:radial-gradient(circle at 38% 38%,#fffde0,#f0d060); box-shadow:0 0 40px rgba(255,240,120,0.5); opacity:0; z-index:1; pointer-events:none; transition:opacity 5s ease; }
+    body.night #moon { opacity:1; }
+    #starField { position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0; transition:opacity 6s ease; }
+    body.night #starField { opacity:1; }
+    .star { position:absolute; background:#fff; border-radius:50%; animation:starTwinkle ease-in-out infinite; }
+    @keyframes starTwinkle { 0%,100% { opacity:0.2; transform:scale(1); } 50% { opacity:1; transform:scale(1.4); } }
+    body.night .building { background:linear-gradient(180deg,#1a2a4a,#0d1a33); box-shadow:inset -4px 0 12px rgba(0,0,0,0.5),0 0 40px rgba(30,80,180,0.35); }
+
+    /* ── SONNE + LICHTSTRAHLEN ── */
+    #sun { position:fixed; top:8vh; right:12vw; width:clamp(60px,14vw,100px); height:clamp(60px,14vw,100px); background:radial-gradient(circle,#fff8c0,#ffe066 40%,rgba(255,220,80,0) 75%); border-radius:50%; z-index:1; pointer-events:none; animation:sunPulse 5s ease-in-out infinite; filter:blur(1px); }
+    @keyframes sunPulse { 0%,100% { transform:scale(1); opacity:0.85; } 50% { transform:scale(1.1); opacity:1; } }
+    #sunRays { position:fixed; top:0; right:0; width:55vw; height:60vh; background:conic-gradient(from 200deg at 75% 18%,rgba(255,248,180,0.13) 0deg,transparent 12deg,rgba(255,248,180,0.09) 20deg,transparent 32deg,rgba(255,248,180,0.11) 44deg,transparent 56deg,rgba(255,248,180,0.07) 64deg,transparent 80deg); z-index:1; pointer-events:none; animation:rayRotate 30s linear infinite; }
+    @keyframes rayRotate { from { transform:rotate(0deg); } to { transform:rotate(8deg); } }
+    #horizon { position:fixed; bottom:0; left:0; right:0; height:18vh; background:linear-gradient(to top,rgba(200,230,255,0.45),transparent); z-index:1; pointer-events:none; }
+
+    /* ── DEKORATIVE HINTERGRUNDWOLKEN ── */
+    .bg-cloud { position:fixed; border-radius:50%; background:rgba(255,255,255,0.55); filter:blur(18px); z-index:1; pointer-events:none; animation:bgCloudDrift linear infinite; }
+    @keyframes bgCloudDrift { from { transform:translateX(110vw); } to { transform:translateX(-60vw); } }
+
+    /* ── PARALLAX BERGE ── */
+    .mountain-layer { position:fixed; bottom:0; left:0; width:300%; pointer-events:none; z-index:1; }
+    #mountains-far  { opacity:0.35; }
+    #mountains-mid  { opacity:0.55; }
+    #mountains-near { opacity:0.75; }
+
+    /* ── DEKORATIVE VÖGEL ── */
+    .bird { position:absolute; z-index:5; pointer-events:none; will-change:left; }
+
+    /* ── HERZ PARTIKEL (beim Antippen) ── */
+    .heart-particle { position:fixed; pointer-events:none; z-index:500; animation:heartFloat 0.9s ease-out forwards; user-select:none; }
+    @keyframes heartFloat { 0% { opacity:1; transform:translateY(0) scale(1); } 100% { opacity:0; transform:translateY(-70px) scale(0.5); } }
+  </style>
+</head>
+<body>
+
+<!-- ── HIMMELS-ELEMENTE ── -->
+<div id="sun"></div>
+<div id="sunRays"></div>
+<div id="horizon"></div>
+<div id="moon"></div>
+<div id="starField"></div>
+
+<!-- ── PARALLAX BERGE (3 Ebenen) ── -->
+<svg id="mountains-far" class="mountain-layer" viewBox="0 0 1440 180" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path id="mf-path" d="M0,180 L0,120 Q80,60 160,100 Q240,140 320,80 Q400,20 480,70 Q560,120 640,60 Q720,10 800,65 Q880,120 960,75 Q1040,30 1120,80 Q1200,130 1280,85 Q1360,40 1440,90 L1440,180 Z" fill="#a8c8e8"/>
+</svg>
+<svg id="mountains-mid" class="mountain-layer" viewBox="0 0 1440 140" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path id="mm-path" d="M0,140 L0,100 Q60,50 140,85 Q220,120 300,65 Q380,10 460,55 Q540,100 620,50 Q700,5 780,45 Q860,90 940,55 Q1020,20 1100,60 Q1180,100 1260,65 Q1340,30 1440,75 L1440,140 Z" fill="#90b4d0"/>
+</svg>
+<svg id="mountains-near" class="mountain-layer" viewBox="0 0 1440 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path id="mn-path" d="M0,100 L0,70 Q50,30 120,60 Q190,90 260,45 Q330,5 410,40 Q490,75 560,35 Q630,0 710,35 Q790,70 860,40 Q930,10 1010,45 Q1090,80 1160,50 Q1230,20 1310,55 Q1380,80 1440,60 L1440,100 Z" fill="#7a9eb8"/>
+</svg>
+
+<!-- ── AUTOPILOT BANNER ── -->
+<div id="autopilotBanner">✈️ Autopilot aktiviert<br>Lehn dich zrugg –<br>de Captain übernimmt 😘</div>
+
+<!-- ── MARIO STERN (fixed, ausserhalb gameContainer damit kein clip) ── -->
+<div id="marioStar">⭐</div>
+
+<!-- ── COUNTDOWN OVERLAY ── -->
+<div id="countdownOverlay">
+  <div id="departureText">Ready for departure ✈️</div>
+  <div id="countdownText">3</div>
+</div>
+
+<!-- ── SINGAPUR MILESTONE OVERLAY ── -->
+<div id="milestoneOverlay">
+  <div id="milestoneText">Zwischeladung Singapur 🇸🇬<br>Maschiiine eifach – nie zwiifel ghaa!! 🏆</div>
+</div>
+
+<!-- ── SPRUCH BUBBLE (10/20/30/40 Punkte) ── -->
+<div id="spruchBubble">
+  <div id="spruchEmoji">🌟</div>
+  <div id="spruchText"></div>
+  <button id="spruchClose" onclick="closeSpruch()">Weiter ✈️</button>
+</div>
+
+<!-- ── STARTSCREEN ── -->
+<div id="startScreen">
+  <h1>Calm Landing ✈️</h1>
+  <p>Was hilft gege Flugsorge?<br>Mer fliegt selber! ❤️</p>
+  <button class="btn-main" onclick="startGame()">Flugangst? Ned mit mir! ✈️</button>
+</div>
+
+<!-- ── HAUPTSPIEL ── -->
+<div id="gameContainer">
+  <div id="score">0</div>
+  <div id="routeContainer">
+    <div id="routeHeader">✈️ ZRH → ICN</div>
+    <div id="routeBar">
+      <div id="routeProgress"></div>
+      <!-- &#9992; statt ✈️-Emoji – verhindert blaues Rechteck auf Mobile -->
+      <div id="routePlane">&#9992;</div>
+      <div class="stop" style="left:0%">ZRH</div>
+      <div class="stop" style="left:50%">SIN</div>
+      <div class="stop" style="left:100%">ICN</div>
+    </div>
+  </div>
+  <div id="plane">✈️</div>
+</div>
+
+<!-- ── FREEZE OVERLAY (blockiert Input während Singapur-Transition) ── -->
+<div id="freezeOverlay"></div>
+
+<!-- ── GAME OVER ── -->
+<div id="gameOver">
+  <div class="go-box">
+    <h2 id="goTitle">Ooops… 😬</h2>
+    <p id="goText">Bruchlandung.</p>
+    <button class="btn-main" onclick="restartGame()">Nomol versuche ✈️</button>
+  </div>
+</div>
+
+<!-- ── WIN SCREEN (Singapur / Halbzeit) ── -->
+<div id="winScreen">
+  <div class="win-box">
+    <h2>🎉 Singapur! Halbzeit! 🇸🇬</h2>
+    <p>Vallah stark gmacht. 💙<br>Nur no d'zweiti Hälfte – du schaffsch das!</p>
+    <button class="btn-main" onclick="continueAfterWin()">Wiiter soo – ab nach Seoul! 🚀</button>
+  </div>
+</div>
+
+<!-- ── FINALER ENDSCREEN (ICN erreicht) ── -->
+<div id="finalScreen">
+  <div id="finalContent">
+    <div id="finalTitle">🛬 Willkomme in Seoul! 🇰🇷<br>Du hesch es gschafft!!</div>
+    <div id="finalSub">Ich lieb dich und wünsch dir<br>e ganz e angenehme Fluug ❤️</div>
+    <!-- Zwei Buttons: Engelsstimme + Musikgeschmack -->
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-top:1.2rem;">
+      <button onclick="window.open(SOUNDCLOUD_URL,'_blank')"
+        style="padding:1em 2em;font-family:'Nunito',sans-serif;font-size:clamp(1rem,4vw,1.3rem);font-weight:900;border:none;border-radius:999px;background:linear-gradient(135deg,#ff5500,#ff7a00);color:#fff;cursor:pointer;box-shadow:0 8px 24px rgba(255,85,0,0.45);">
+        🎙️ Mini Überraschig
+      </button>
+      <button onclick="window.open(SURPRISE_URL,'_blank')"
+        style="padding:1em 2em;font-family:'Nunito',sans-serif;font-size:clamp(1rem,4vw,1.3rem);font-weight:900;border:none;border-radius:999px;background:linear-gradient(135deg,#1db954,#17a34a);color:#fff;cursor:pointer;box-shadow:0 8px 24px rgba(29,185,84,0.45);">
+        🎵 Mini Playlist
+      </button>
+    </div>
+    <button id="finalBtn" onclick="restartGame()" style="margin-top:1rem;">Nomol vo vorne ✈️</button>
+  </div>
+</div>
+
+<script>
+  // ═══════════════════════════════════════════════════════
+  //  DOM REFERENZEN
+  // ═══════════════════════════════════════════════════════
+  const plane            = document.getElementById('plane');
+  const scoreEl          = document.getElementById('score');
+  const gameContainer    = document.getElementById('gameContainer');
+  const startScreen      = document.getElementById('startScreen');
+  const gameOverEl       = document.getElementById('gameOver');
+  const winScreenEl      = document.getElementById('winScreen');
+  const finalScreenEl    = document.getElementById('finalScreen');
+  const routeProgress    = document.getElementById('routeProgress');
+  const milestoneOverlay = document.getElementById('milestoneOverlay');
+  const spruchBubble     = document.getElementById('spruchBubble');
+  const spruchEmoji      = document.getElementById('spruchEmoji');
+  const spruchText       = document.getElementById('spruchText');
+
+  // ═══════════════════════════════════════════════════════
+  //  SPIELZUSTAND
+  // ═══════════════════════════════════════════════════════
+  let gameRunning    = false;
+  let animationId    = null;
+  let scoreTimer     = null;
+  let cloudTimer     = null;
+  let score          = 0;
+  let position       = 48;
+  let velocity       = 0;
+  const GRAVITY      = 0.09;
+  const LIFT         = -2.3;
+  const MAX_VEL      = 4.2;
+  let obstacles      = [];
+  let touchHeld      = false;
+  let singaporeShown = false;
+  let winReached     = false;
+  let invincible     = false; // true ab Score 50
+  let autopilot      = false; // true während Autopilot-Phase
+
+  // ═══════════════════════════════════════════════════════
+  //  TEXTE
+  // ═══════════════════════════════════════════════════════
+  const SPRUECHE = {
+    10: { emoji: '❤️', text: 'Super gmacht Holzkopf! ❤️' },
+    20: { emoji: '💪', text: 'Schon 20 Punkte! ✈️\nDu fliegsch souveräner als du parkiersch – respect!' },
+    30: { emoji: '🌏', text: 'Über d Halbziit drüber!\nGeboreni Pilotin 😤' },
+    40: { emoji: '🇸🇬', text: 'Singapur nah, Zwischeladung mit Sacks! 🍜\nHauptsnack gits aber in Seoul – (ich 😏)' },
+  };
+
+  const GAME_OVER_MSGS = [
+    { title: 'Nice try, Schatzeli 😘',                    text: 'So klappts niit nach Singapur.\nAber du schaffsch das, ich glaub a dich!' },
+    { title: 'Flugzüügkaution: wech 💸',                  text: 'So landet mer e Flugzeug nur einisch.\nGlück, dass du kei Pilotin bisch.' },
+    { title: 'Daniela (Griechenland)\nwär nid happy 😤',  text: 'Bruchladung vom Feinschte.\nAber hey – Stil hesch du.' },
+    { title: 'Good job bim Verkacke 👏',                  text: 'Ernsthaft, das isch Kunst gsii.\nNegativii Kunst, aber trotzdem.' },
+    { title: 'Die Wolke: 1 – Du: 0 ☁️',                  text: 'Unterschied zwische dir und eme Schmetterling:\ndu chasch nid fliege ^^' },
+    { title: 'Schwach gstartet,\nstark nachgloh 💀',      text: 'Oder eigentlich nur schwach gstartet.\nAber du versuchsch s nomol?' },
+    { title: 'Flugzeug sinkt so tief\nwie mis Niveau 📉', text: 'Das isch mis Problem, ned deins ^^\nNochmal!' },
+    { title: 'SOS usem Cockpit 📻',                       text: 'Mier händ es Problem.\nEigentlich mehrerii.' },
+    { title: 'You are a Dreamer youuu! 🌙',               text: '' },
+  ];
+
+  let triggered = { 10: false, 20: false, 30: false, 40: false, 50: false, 80: false };
+
+  // ⬇️ SoundCloud Link (deine Aufnahme/Überraschung):
+  const SOUNDCLOUD_URL = 'https://soundcloud.com/vale-907618928/psychology-in-minutes/s-Igtw50ir6AR';
+  // ⬇️ Spotify Link (deine Playlist):
+  const SURPRISE_URL   = 'https://open.spotify.com/playlist/4k5ONRiqQZhkvb92KDFMPJ?si=af70fe30177d4b49';
+
+  // ═══════════════════════════════════════════════════════
+  //  RESET
+  // ═══════════════════════════════════════════════════════
+  function resetGame() {
+    gameRunning = false; score = 0; position = 48; velocity = 0;
+    singaporeShown = false; winReached = false; invincible = false; autopilot = false; autopilotT = 0;
+    triggered = { 10: false, 20: false, 30: false, 40: false, 50: false, 80: false };
+
+    scoreEl.textContent = '0';
+    plane.style.top = '48%'; plane.style.transform = 'rotate(0deg)'; plane.style.filter = '';
+    plane.classList.remove('rainbow-mode');
+    routeProgress.style.width = '0%';
+    document.getElementById('routePlane').style.left = '0%';
+    updateCityLabel(0);
+
+    gameOverEl.style.display = 'none';
+    winScreenEl.style.display = 'none';
+    finalScreenEl.classList.remove('show');
+    milestoneOverlay.classList.remove('visible');
+    spruchBubble.classList.remove('show');
+    document.getElementById('freezeOverlay').style.display = 'none';
+    document.getElementById('marioStar').style.display = 'none';
+    document.getElementById('autopilotBanner').classList.remove('show');
+    deactivateNightMode();
+
+    obstacles.forEach(o => o?.el?.remove()); obstacles = [];
+    activeBirds.forEach(b => b.el.remove()); activeBirds = [];
+    if (birdTimer) { clearTimeout(birdTimer); birdTimer = null; }
+    if (animationId) cancelAnimationFrame(animationId);
+    if (scoreTimer) { clearInterval(scoreTimer); scoreTimer = null; }
+    if (cloudTimer) { clearInterval(cloudTimer); cloudTimer = null; }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  START
+  // ═══════════════════════════════════════════════════════
+  async function startGame() {
+    resetGame();
+    await doCountdown();
+    startScreen.style.display = 'none';
+    gameContainer.style.display = 'block';
+    gameRunning = true;
+
+    scoreTimer = setInterval(() => {
+      if (!gameRunning) return;
+      score++;
+      scoreEl.textContent = score;
+      updateCityLabel(score);
+      const progress = Math.min(score / 80 * 100, 100);
+      routeProgress.style.width = progress + '%';
+      document.getElementById('routePlane').style.left = progress + '%';
+      checkMilestones();
+    }, 2000);
+
+    cloudTimer = setInterval(() => { if (gameRunning) spawnObstacle(); }, 5800);
+
+    spawnBirds();
+    spawnBgClouds();
+    startCabinNoise();
+    gameLoop();
+  }
+
+  function restartGame() { resetGame(); startGame(); }
+
+  async function continueAfterWin() {
+    winScreenEl.style.display = 'none';
+    activateNightMode();
+
+    autopilot  = true;
+    autopilotT = 0;
+    gameRunning = true;
+
+    // Autopilot-Banner einblenden statt Spruch-Bubble
+    const banner = document.getElementById('autopilotBanner');
+    banner.classList.add('show');
+
+    gameLoop();
+
+    await pause(8000);
+
+    // Banner ausblenden, dann Autopilot aus
+    banner.classList.remove('show');
+    await pause(700);
+    autopilot = false;
+
+    // Score-Timer starten für zweite Hälfte
+    if (!scoreTimer) {
+      scoreTimer = setInterval(() => {
+        if (!gameRunning) return;
+        score++;
+        scoreEl.textContent = score;
+        updateCityLabel(score);
+        const progress = Math.min(score / 80 * 100, 100);
+        routeProgress.style.width = progress + '%';
+        document.getElementById('routePlane').style.left = progress + '%';
+        checkMilestones();
+      }, 2000);
+    }
+    cloudTimer = setInterval(() => { if (gameRunning) spawnObstacle(); }, 5800);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  STADTNAME
+  // ═══════════════════════════════════════════════════════
+  const CITIES = [
+    { at:0,  label:'🇨🇭 Zürich' },
+    { at:10, label:'🇮🇳 über Indien' },
+    { at:20, label:'🇹🇭 über Thailand' },
+    { at:30, label:'🇻🇳 über Vietnam' },
+    { at:40, label:'🇸🇬 fast Singapur!' },
+    { at:50, label:'🌙 über Japan' },
+    { at:60, label:'🌟 fast Incheon!' },
+  ];
+  function updateCityLabel(s) {
+    let city = CITIES[0].label;
+    for (const c of CITIES) { if (s >= c.at) city = c.label; }
+    scoreEl.innerHTML = `${s}<br><span style="font-size:0.42em;font-weight:700;opacity:0.85;line-height:1.2">${city}</span>`;
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  COUNTDOWN
+  // ═══════════════════════════════════════════════════════
+  async function doCountdown() {
+    const overlay = document.getElementById('countdownOverlay');
+    const text    = document.getElementById('countdownText');
+    overlay.classList.add('visible');
+    for (const step of ['3','2','1','Sanft abheben… ✈️']) {
+      text.textContent = step;
+      await pause(1200);
+    }
+    overlay.classList.remove('visible');
+    await pause(400);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  GAME LOOP
+  // ═══════════════════════════════════════════════════════
+  let autopilotT = 0; // Zeit-Counter für Sinus-Welle im Autopilot
+
+  function gameLoop() {
+    if (!gameRunning) return;
+
+    if (autopilot) {
+      // Autopilot: sanfte Sinus-Welle, kein Input nötig
+      autopilotT += 0.025;
+      position = 45 + Math.sin(autopilotT) * 18;
+      velocity = 0;
+      plane.style.top = position + '%';
+      plane.style.transform = `rotate(${Math.sin(autopilotT) * 8}deg)`;
+    } else {
+      // Normale Physik – ab Score 50 sanftere Gravitation
+      const currentGravity = invincible ? GRAVITY * 0.55 : GRAVITY;
+      velocity += currentGravity;
+      velocity *= 0.978;
+      velocity = Math.min(velocity, invincible ? MAX_VEL * 0.65 : MAX_VEL);
+      position += velocity;
+      if (position < 6)  { position = 6; velocity = 0.5; }
+      if (position > 86 && !invincible) { endGame(); return; }
+      if (position > 86) position = 86;
+      plane.style.top = position + '%';
+      if (!plane.classList.contains('rainbow-mode')) {
+        plane.style.transform = `rotate(${Math.max(-22, Math.min(32, velocity * 5))}deg)`;
+      }
+    }
+
+    moveObstacles();
+    checkCollisions();
+    animationId = requestAnimationFrame(gameLoop);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  MEILENSTEINE
+  // ═══════════════════════════════════════════════════════
+  function checkMilestones() {
+    for (const pts of [10,20,30,40]) {
+      if (score === pts && !triggered[pts]) { triggered[pts] = true; showSpruch(SPRUECHE[pts]); return; }
+    }
+    if (score >= 50 && !triggered[50]) { triggered[50] = true; showSingapurOverlay(); return; }
+    if (score >= 80 && !triggered[80]) { triggered[80] = true; showFinalScreen(); }
+  }
+
+  function showSpruch({ emoji, text }) {
+    gameRunning = false; cancelAnimationFrame(animationId); soundMilestone();
+    spruchEmoji.textContent = emoji; spruchText.textContent = text;
+    document.getElementById('spruchClose').style.display = 'block';
+    spruchBubble.classList.add('show');
+  }
+  function closeSpruch() {
+    spruchBubble.classList.remove('show'); gameRunning = true; gameLoop();
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  SINGAPUR OVERLAY + MARIO STERN
+  //  Fix: freezeOverlay blockiert alle Inputs sofort →
+  //  kein Abstürzen mehr während der Transition
+  // ═══════════════════════════════════════════════════════
+  async function showSingapurOverlay() {
+    // 1) Alles sofort einfrieren
+    gameRunning = false; invincible = true;
+    cancelAnimationFrame(animationId);
+    clearInterval(scoreTimer); scoreTimer = null;
+    clearInterval(cloudTimer); cloudTimer = null;
+
+    // 2) Freeze Overlay → blockiert alle Inputs
+    document.getElementById('freezeOverlay').style.display = 'block';
+
+    // 3) Flugzeug sanft zur Mitte
+    plane.style.transition = 'top 1.0s ease-out, transform 1.0s ease-out';
+    plane.style.top = '45%'; plane.style.transform = 'rotate(0deg)';
+    soundMilestone();
+
+    // 4) Mario-Stern einfliegen
+    const star = document.getElementById('marioStar');
+    star.style.display = 'block';
+    soundMarioStar(); // Stern-Musik starten!
+    await pause(2500); // warten bis Stern fast am Flugzeug ist
+    plane.style.transition = '';
+
+    // 5) Stern trifft Flugzeug → Regenbogen!
+    star.style.display = 'none';
+    plane.classList.add('rainbow-mode');
+    soundWin();
+    await pause(300);
+
+    // 6) Schwarzblende
+    const blackout = document.createElement('div');
+    blackout.style.cssText = 'position:fixed;inset:0;background:#000;z-index:998;opacity:0;transition:opacity 0.5s;pointer-events:none;';
+    document.body.appendChild(blackout);
+    await pause(50); blackout.style.opacity = '1'; await pause(600);
+
+    // 7) Singapur Overlay
+    milestoneOverlay.classList.add('visible');
+    blackout.style.opacity = '0'; setTimeout(() => blackout.remove(), 600);
+    await pause(3800);
+    milestoneOverlay.classList.remove('visible');
+
+    // 8) Weiter – Regenbogen bleibt in zweiter Hälfte aktiv!
+    document.getElementById('freezeOverlay').style.display = 'none';
+    winScreenEl.style.display = 'grid';
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  FINALER ENDSCREEN
+  // ═══════════════════════════════════════════════════════
+  function showFinalScreen() {
+    gameRunning = false; cancelAnimationFrame(animationId);
+    clearInterval(scoreTimer); scoreTimer = null;
+    clearInterval(cloudTimer); cloudTimer = null;
+    stopCabinNoise(); soundWin();
+    finalScreenEl.classList.add('show');
+    spawnConfetti();
+  }
+
+  function spawnConfetti() {
+    const colors = ['#ffd54f','#66bb6a','#42a5f5','#ef5350','#ab47bc','#ff7043','#fff'];
+    for (let i = 0; i < 80; i++) {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.cssText = `left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*10}px;height:${8+Math.random()*14}px;animation-duration:${2.5+Math.random()*3}s;animation-delay:${Math.random()*2}s;border-radius:${Math.random()>0.5?'50%':'2px'};`;
+      finalScreenEl.appendChild(el);
+      setTimeout(() => el.remove(), 6000);
+    }
+  }
+
+  function drawQRCode(url) {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    s.onload = () => {
+      document.getElementById('qrCanvas').style.display = 'none';
+      const div = document.createElement('div');
+      document.getElementById('qrBox').insertBefore(div, document.getElementById('qrCanvas'));
+      new QRCode(div, { text: url, width: Math.min(210, window.innerWidth*0.40), height: Math.min(210, window.innerWidth*0.40), colorDark:'#1a2a4a', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.H });
+    };
+    document.head.appendChild(s);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  HINDERNISSE
+  //  Vor Score 50: 70% Wolken / 30% Gebäude
+  //  Ab Score 50:  nur Gebäude (Nacht-Stadtbild)
+  // ═══════════════════════════════════════════════════════
+  function spawnObstacle() {
+    if (!gameRunning) return;
+    if (score > 50)           { createBuilding(); return; }
+    if (Math.random() < 0.30) createBuilding();
+    else                       createCloudPair();
+  }
+
+  function createCloudPair() {
+    const pair = document.createElement('div'); pair.className = 'cloud-pair'; pair.style.left = window.innerWidth + 'px';
+
+    // Garantierter Durchgang: mind. 38% des Bildschirms, max 50%
+    const minGap = Math.max(280, window.innerHeight * 0.38);
+    const maxGap = window.innerHeight * 0.50;
+    const gap     = minGap + Math.random() * (maxGap - minGap);
+    const available = window.innerHeight - gap;
+
+    // Lücke zufällig positionieren aber nie ganz oben/unten kleben
+    const minTop = Math.max(30, window.innerHeight * 0.08);
+    const maxTop = available - Math.max(30, window.innerHeight * 0.08);
+    const topH   = minTop + Math.random() * (maxTop - minTop);
+    const botH   = Math.max(30, available - topH);
+
+    const top = document.createElement('div'); top.className = 'cloud top'; top.style.height = topH + 'px';
+    const bot = document.createElement('div'); bot.className = 'cloud bottom'; bot.style.height = botH + 'px';
+    pair.append(top, bot); gameContainer.appendChild(pair);
+    obstacles.push({ el: pair, x: window.innerWidth, w: 160 });
+  }
+
+  function createBuilding() {
+    const wrap = document.createElement('div'); wrap.className = 'building-wrap'; wrap.style.left = window.innerWidth + 'px';
+
+    // Nur 1–2 Gebäude statt 2–4 → weniger Blockierung + besser Performance
+    const count     = 1 + Math.floor(Math.random() * 2);
+    // Garantierter Freiraum: mind. 42% vom Bildschirm oben
+    const maxBuildH = Math.floor(window.innerHeight * 0.52);
+
+    let cursor = 0, maxH = 0;
+    for (let i = 0; i < count; i++) {
+      const b = document.createElement('div'); b.className = 'building';
+      const w = 38 + Math.floor(Math.random() * 30);
+      const h = 80  + Math.floor(Math.random() * (maxBuildH - 80));
+      b.style.width = w + 'px'; b.style.height = h + 'px'; b.style.left = cursor + 'px';
+      cursor += w + 10;
+      if (h > maxH) { maxH = h; b.classList.add('has-antenna'); }
+
+      // Saubere Einzelfenster via DOM (wenige Divs, keine Karomuster)
+      addWindowRows(b, w, h);
+      wrap.appendChild(b);
+    }
+    wrap.style.width = cursor + 'px'; gameContainer.appendChild(wrap);
+    obstacles.push({ el: wrap, x: window.innerWidth, w: cursor });
+  }
+
+  // Echte Einzelfenster – Zeilen von kleinen leuchtenden Rechtecken,
+  // zufällig an/aus – sieht aus wie ein echtes Hochhaus nachts
+  function addWindowRows(building, bw, bh) {
+    const winW = 8, winH = 10, padX = 8, padTop = 16, gapX = 10, gapY = 13;
+    const cols = Math.max(1, Math.floor((bw - padX * 2) / (winW + gapX)));
+    const rows = Math.max(1, Math.floor((bh - padTop)   / (winH + gapY)));
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (Math.random() < 0.40) continue; // 40% dunkel
+        const win  = document.createElement('div');
+        const warm = Math.random() < 0.72;
+        win.style.cssText = [
+          'position:absolute',
+          `width:${winW}px`,
+          `height:${winH}px`,
+          `left:${padX + c * (winW + gapX)}px`,
+          `top:${padTop + r * (winH + gapY)}px`,
+          warm
+            ? `background:rgba(255,${195 + Math.floor(Math.random()*50)},55,0.9)`
+            : `background:rgba(185,220,255,0.78)`,
+          'border-radius:2px',
+          warm
+            ? 'box-shadow:0 0 6px rgba(255,160,0,0.6)'
+            : 'box-shadow:0 0 5px rgba(150,200,255,0.5)',
+        ].join(';');
+        building.appendChild(win);
+      }
+    }
+  }
+
+  function moveObstacles() {
+    const speed = Math.min(1.5 + score * 0.018, 2.8);
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const obs = obstacles[i];
+      obs.x -= speed;
+      // transform statt left → GPU-beschleunigt, flüssiger
+      obs.el.style.transform = `translateX(${obs.x - window.innerWidth}px)`;
+      if (obs.x < -(obs.w + 60)) { obs.el.remove(); obstacles.splice(i, 1); }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  KOLLISION + NEAR-MISS
+  // ═══════════════════════════════════════════════════════
+  let lastShake = 0;
+  function checkCollisions() {
+    const full = plane.getBoundingClientRect();
+    const sx = full.width*0.20, sy = full.height*0.20;
+    const p = { left:full.left+sx, right:full.right-sx, top:full.top+sy, bottom:full.bottom-sy };
+    const nm = 18;
+    const near = { left:p.left-nm, right:p.right+nm, top:p.top-nm, bottom:p.bottom+nm };
+    for (const obs of obstacles) {
+      for (const child of obs.el.children) {
+        const c = child.getBoundingClientRect();
+        if (c.width===0||c.height===0) continue;
+        if (!invincible && p.right>c.left && p.left<c.right && p.bottom>c.top && p.top<c.bottom) { endGame(); return; }
+        const now=Date.now();
+        if (now-lastShake>600 && near.right>c.left && near.left<c.right && near.bottom>c.top && near.top<c.bottom) {
+          lastShake=now;
+          if (!plane.classList.contains('rainbow-mode')) { plane.style.filter='brightness(1.6) drop-shadow(0 0 8px #ff0)'; setTimeout(()=>{plane.style.filter='';},350); }
+          if (navigator.vibrate) navigator.vibrate(40);
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  GAME OVER
+  // ═══════════════════════════════════════════════════════
+  function endGame() {
+    gameRunning=false; cancelAnimationFrame(animationId);
+    clearInterval(scoreTimer); scoreTimer=null;
+    clearInterval(cloudTimer); cloudTimer=null;
+    soundCrash(); stopCabinNoise();
+    const msg=GAME_OVER_MSGS[Math.floor(Math.random()*GAME_OVER_MSGS.length)];
+    document.getElementById('goTitle').textContent=msg.title;
+    document.getElementById('goText').textContent=msg.text;
+    plane.style.filter='hue-rotate(180deg) brightness(1.4)';
+    if (navigator.vibrate) navigator.vibrate([80,40,80,40,160]);
+    gameOverEl.style.display='grid';
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  INPUT
+  // ═══════════════════════════════════════════════════════
+  function applyLift() {
+    if (!gameRunning) return;
+    velocity+=LIFT; velocity=Math.max(velocity,-MAX_VEL);
+    soundLift(); spawnHeart();
+  }
+  document.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; applyLift(); touchHeld=true; });
+  document.addEventListener('pointerup',     () => touchHeld=false);
+  document.addEventListener('pointerleave',  () => touchHeld=false);
+  document.addEventListener('pointercancel', () => touchHeld=false);
+  setInterval(() => { if (touchHeld&&gameRunning&&position>10) { velocity+=-0.4; velocity=Math.max(velocity,-MAX_VEL); } },150);
+  document.addEventListener('keydown', e => { if (!gameRunning) return; if (e.code==='Space'||e.code==='ArrowUp') { e.preventDefault(); applyLift(); } });
+
+  // ── Herz-Partikel beim Antippen ──
+  const HEARTS=['❤️','💙','✨','💫','🌟']; let lastHeartTime=0;
+  function spawnHeart() {
+    const now=Date.now(); if (now-lastHeartTime<120) return; lastHeartTime=now;
+    const r=plane.getBoundingClientRect(); const el=document.createElement('div');
+    el.className='heart-particle'; el.textContent=HEARTS[Math.floor(Math.random()*HEARTS.length)];
+    el.style.left=(r.right-10+(Math.random()*20-10))+'px'; el.style.top=(r.top+r.height/2)+'px';
+    el.style.fontSize=(0.9+Math.random()*0.6)+'rem';
+    document.body.appendChild(el); setTimeout(()=>el.remove(),900);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  SOUND (Web Audio API – keine externen Files)
+  // ═══════════════════════════════════════════════════════
+  let audioCtx=null, noiseNode=null, noiseGain=null;
+  function getAudio() { if (!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+  function playTone(freq,duration,type='sine',vol=0.15,delay=0) {
+    try {
+      const ctx=getAudio(),osc=ctx.createOscillator(),gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination); osc.type=type;
+      osc.frequency.setValueAtTime(freq,ctx.currentTime+delay);
+      gain.gain.setValueAtTime(0,ctx.currentTime+delay);
+      gain.gain.linearRampToValueAtTime(vol,ctx.currentTime+delay+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay+duration);
+      osc.start(ctx.currentTime+delay); osc.stop(ctx.currentTime+delay+duration);
+    } catch(e) {}
+  }
+  function soundLift()      { playTone(480,0.08,'sine',0.04); }
+  function soundMilestone() { playTone(523,0.15,'sine',0.12,0); playTone(659,0.15,'sine',0.12,0.1); playTone(784,0.25,'sine',0.14,0.2); }
+  function soundCrash()     { playTone(120,0.4,'sawtooth',0.2); playTone(80,0.5,'sawtooth',0.15,0.1); }
+  function soundWin()       { [523,659,784,1047].forEach((f,i)=>playTone(f,0.3,'sine',0.15,i*0.12)); }
+
+  // Mario-Stern Musik – die klassische aufsteigende Melodie
+  // Notenwerte angelehnt an das originale Super Mario Kart Star Theme
+  function soundMarioStar() {
+    // Melodie: charakteristische schnelle Noten-Sequenz
+    const notes = [
+      // Frequenz, Dauer, Delay
+      [988,  0.10, 0.00],  // B5
+      [1175, 0.10, 0.10],  // D6
+      [1319, 0.10, 0.20],  // E6
+      [1568, 0.14, 0.30],  // G6
+      [1319, 0.10, 0.44],  // E6
+      [1568, 0.20, 0.54],  // G6  (etwas länger)
+
+      [988,  0.10, 0.80],
+      [1175, 0.10, 0.90],
+      [1319, 0.10, 1.00],
+      [1568, 0.14, 1.10],
+      [1319, 0.10, 1.24],
+      [1568, 0.20, 1.34],
+
+      [1175, 0.10, 1.60],
+      [1319, 0.10, 1.70],
+      [1480, 0.10, 1.80],
+      [1760, 0.14, 1.90],
+      [1480, 0.10, 2.04],
+      [1760, 0.25, 2.14],
+    ];
+
+    // Zweite Stimme (Harmonie) leise darunter
+    const harmony = [
+      [494,  0.10, 0.00],
+      [587,  0.10, 0.10],
+      [659,  0.10, 0.20],
+      [784,  0.14, 0.30],
+      [659,  0.10, 0.44],
+      [784,  0.20, 0.54],
+      [494,  0.10, 0.80],
+      [587,  0.10, 0.90],
+      [659,  0.10, 1.00],
+      [784,  0.14, 1.10],
+      [659,  0.10, 1.24],
+      [784,  0.20, 1.34],
+      [587,  0.10, 1.60],
+      [659,  0.10, 1.70],
+      [740,  0.10, 1.80],
+      [880,  0.14, 1.90],
+      [740,  0.10, 2.04],
+      [880,  0.25, 2.14],
+    ];
+
+    notes.forEach(([f, d, delay])   => playTone(f, d, 'square', 0.12, delay));
+    harmony.forEach(([f, d, delay]) => playTone(f, d, 'square', 0.06, delay));
+  }
+  function startCabinNoise() {
+    try {
+      const ctx=getAudio(),bufSize=ctx.sampleRate*3,buf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
+      const d=buf.getChannelData(0); for(let i=0;i<bufSize;i++) d[i]=Math.random()*2-1;
+      noiseNode=ctx.createBufferSource(); noiseNode.buffer=buf; noiseNode.loop=true;
+      const f=ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=400;
+      noiseGain=ctx.createGain(); noiseGain.gain.value=0;
+      noiseNode.connect(f); f.connect(noiseGain); noiseGain.connect(ctx.destination);
+      noiseNode.start(); noiseGain.gain.linearRampToValueAtTime(0.06,ctx.currentTime+3);
+    } catch(e) {}
+  }
+  function stopCabinNoise() {
+    try { if(noiseGain){noiseGain.gain.linearRampToValueAtTime(0,audioCtx.currentTime+1.5);setTimeout(()=>{try{noiseNode.stop();}catch(e){}},2000);noiseNode=null;noiseGain=null;} } catch(e) {}
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  PARALLAX BERGE
+  // ═══════════════════════════════════════════════════════
+  const mFar=document.getElementById('mountains-far'),mMid=document.getElementById('mountains-mid'),mNear=document.getElementById('mountains-near');
+  let mountainX=0;
+  function animateMountains() {
+    if (gameRunning) {
+      mountainX-=0.18; const factor=Math.min(1.5+score*0.018,2.8)/1.8;
+      mFar.style.transform=`translateX(${mountainX*0.3*factor}px)`;
+      mMid.style.transform=`translateX(${mountainX*0.55*factor}px)`;
+      mNear.style.transform=`translateX(${mountainX*0.9*factor}px)`;
+      if (mountainX<-window.innerWidth) mountainX=0;
+    }
+    requestAnimationFrame(animateMountains);
+  }
+  animateMountains();
+  const MC={ day:{far:'#a8c8e8',mid:'#90b4d0',near:'#7a9eb8'}, night:{far:'#1a2a45',mid:'#142035',near:'#0d1828'} };
+  function setMountainColors(m) {
+    document.getElementById('mf-path').style.fill=MC[m].far;
+    document.getElementById('mm-path').style.fill=MC[m].mid;
+    document.getElementById('mn-path').style.fill=MC[m].near;
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  NACHT-MODUS
+  // ═══════════════════════════════════════════════════════
+  let nightActive=false;
+  function activateNightMode() {
+    if(nightActive)return; nightActive=true;
+    document.body.classList.add('night'); generateStars();
+    setTimeout(()=>setMountainColors('night'),1000);
+  }
+  function deactivateNightMode() {
+    nightActive=false; document.body.classList.remove('night');
+    document.getElementById('starField').innerHTML=''; setMountainColors('day');
+  }
+  function generateStars() {
+    const field=document.getElementById('starField'); field.innerHTML='';
+    for(let i=0;i<120;i++){
+      const s=document.createElement('div'); s.className='star';
+      const sz=1+Math.random()*2.5;
+      s.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*75}%;left:${Math.random()*100}%;animation-duration:${2+Math.random()*4}s;animation-delay:${Math.random()*4}s;opacity:${0.3+Math.random()*0.7};`;
+      field.appendChild(s);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  DEKORATIVE HINTERGRUNDWOLKEN
+  // ═══════════════════════════════════════════════════════
+  function spawnBgClouds() {
+    for(let i=0;i<5;i++) spawnOneBgCloud(Math.random()*100);
+    setInterval(()=>{if(gameRunning)spawnOneBgCloud(110);},7000+Math.random()*4000);
+  }
+  function spawnOneBgCloud(vw) {
+    const el=document.createElement('div'); el.className='bg-cloud';
+    const sz=80+Math.random()*180,dur=35+Math.random()*30;
+    el.style.cssText=`width:${sz}px;height:${sz*0.55}px;top:${5+Math.random()*65}%;left:${vw}vw;opacity:${0.3+Math.random()*0.35};animation-duration:${dur}s;`;
+    document.body.appendChild(el); setTimeout(()=>el.remove(),dur*1000+2000);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  DEKORATIVE VÖGEL
+  // ═══════════════════════════════════════════════════════
+  const BIRD_TYPES=['🦅','🦢','🐦','🦜','🕊️']; let activeBirds=[],birdTimer=null;
+  function spawnBirds() { scheduleNextBird(); requestAnimationFrame(animateBirds); }
+  function scheduleNextBird() { birdTimer=setTimeout(()=>{if(gameRunning)spawnOneBird();scheduleNextBird();},4000+Math.random()*8000); }
+  function spawnOneBird() {
+    const el=document.createElement('div'); el.className='bird';
+    el.textContent=BIRD_TYPES[Math.floor(Math.random()*BIRD_TYPES.length)];
+    el.style.fontSize=(1+Math.random())+'rem'; el.style.top=(8+Math.random()*55)+'%';
+    el.style.opacity=(0.35+Math.random()*0.45)+''; el.style.left=(window.innerWidth+60)+'px';
+    gameContainer.appendChild(el); activeBirds.push({el,x:window.innerWidth+60,speed:0.6+Math.random()*1.4});
+  }
+  function animateBirds() {
+    for(let i=activeBirds.length-1;i>=0;i--){
+      const b=activeBirds[i]; b.x-=b.speed; b.el.style.left=b.x+'px';
+      if(b.x<-80){b.el.remove();activeBirds.splice(i,1);}
+    }
+    requestAnimationFrame(animateBirds);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  UTIL
+  // ═══════════════════════════════════════════════════════
+  function pause(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+  // Service Worker für PWA Offline-Support
+  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
